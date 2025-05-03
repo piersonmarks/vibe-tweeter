@@ -186,7 +186,9 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         // Use existing ID if available, otherwise generate a stable one
         return {
           ...tweetObj,
-          id: tweetObj.id || getOrCreateTweetId(tweetObj, index)
+          id: tweetObj.id || getOrCreateTweetId(tweetObj, index),
+          // During streaming, don't set isGeneratingImage yet
+          isGeneratingImage: false
         };
       });
 
@@ -199,6 +201,8 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
     if (isLoading) {
       setTweetIdMap(new Map());
       setPendingImageGenerations(new Set());
+      // Clear the thread when starting a new generation
+      setThread(null);
     }
   }, [isLoading]);
 

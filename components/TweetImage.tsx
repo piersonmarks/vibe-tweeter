@@ -35,7 +35,10 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
     if (!tweet.text || !tweet.id) return;
     toast.loading("Regenerating image...");
 
+    // Set local state and notify the thread provider
     setLocalIsGenerating(true);
+    setTweetImageGenerating(tweet.id, true);
+
     try {
       const response = await fetch("/api/v1/generate-image", {
         method: "POST",
@@ -54,7 +57,10 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
     } catch (error) {
       console.error("Failed to generate image:", error);
     } finally {
+      toast.dismiss();
+      // Reset both local state and thread provider state
       setLocalIsGenerating(false);
+      setTweetImageGenerating(tweet.id, false);
     }
   };
 
