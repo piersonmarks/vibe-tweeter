@@ -19,10 +19,18 @@ type TweetWithImage = Partial<Tweet> & {
 export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
   const [localIsGenerating, setLocalIsGenerating] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const { updateTweetImage, setTweetImageGenerating } = useThread();
+  const { regenerateImage, setTweetImageGenerating } = useThread();
 
   // Use either local state or tweet's isGeneratingImage property
   const isGenerating = localIsGenerating || tweet.isGeneratingImage;
+
+  // If tweet has an ID but no image and is not already generating, set it to generate
+  useEffect(() => {
+    if (tweet.id && !tweet.image && !isGenerating && tweet.text) {
+      console.log(`TweetImage: Triggering image generation for tweet ${tweet.id}`);
+      handleGenerateImage();
+    }
+  }, [tweet.id, tweet.image, tweet.text, isGenerating]);
 
   // For debugging - log when generating state changes
   useEffect(() => {
@@ -32,35 +40,30 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
   }, [isGenerating, tweet.id]);
 
   const handleGenerateImage = async () => {
-    if (!tweet.text || !tweet.id) return;
-    toast.loading("Regenerating image...");
+    if (!tweet.text || !tweet.id) {
+      console.error("Cannot generate image: missing tweet text or ID");
+      return;
+    }
 
-    // Set local state and notify the thread provider
+    // Set local state
     setLocalIsGenerating(true);
-    setTweetImageGenerating(tweet.id, true);
+
+    if (!tweet.image) {
+      toast.loading("Generating image...");
+    } else {
+      toast.loading("Regenerating image...");
+    }
 
     try {
-      const response = await fetch("/api/v1/generate-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: tweet.text }),
-      });
-
-      const data = await response.json();
-      if (data.image) {
-        // Convert base64 to data URL for images
-        const imageUrl = `data:image/png;base64,${data.image}`;
-        updateTweetImage(tweet.id, imageUrl);
-      }
+      await regenerateImage(tweet.id, tweet.text);
+      toast.success("Image generated successfully");
     } catch (error) {
       console.error("Failed to generate image:", error);
+      toast.error("Error generating image");
     } finally {
       toast.dismiss();
-      // Reset both local state and thread provider state
+      // Reset local state
       setLocalIsGenerating(false);
-      setTweetImageGenerating(tweet.id, false);
     }
   };
 

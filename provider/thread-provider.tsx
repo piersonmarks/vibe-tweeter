@@ -1,7 +1,7 @@
 'use client';
 
 import { TweetSchema } from "@/app/api/schema";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { z } from "zod";
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 
@@ -30,6 +30,7 @@ interface ThreadContextType {
   stopGeneration: () => void;
   updateTweetImage: (tweetId: string, imageUrl: string) => void;
   setTweetImageGenerating: (tweetId: string, generating: boolean) => void;
+  regenerateImage: (tweetId: string, tweetText: string) => Promise<void>;
 }
 
 export const ThreadContext = createContext<ThreadContextType>({
@@ -39,6 +40,7 @@ export const ThreadContext = createContext<ThreadContextType>({
   stopGeneration: () => { },
   updateTweetImage: () => { },
   setTweetImageGenerating: () => { },
+  regenerateImage: async () => { },
 });
 
 export function useThread() {
@@ -47,171 +49,10 @@ export function useThread() {
 
 export function ThreadProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [thread, setThread] = useState<Thread>(null);
-  // Store IDs for consistent mapping
-  const [tweetIdMap, setTweetIdMap] = useState<Map<string, string>>(new Map());
-  // Track pending image generations
-  const [pendingImageGenerations, setPendingImageGenerations] = useState<Set<string>>(new Set());
 
-  const { object, submit, isLoading, stop } = useObject({
-    api: '/api/v1/generate-thread',
-    schema: ThreadSchema,
-    onFinish: (result) => {
-      if (result.object) {
-        // Convert to array if it's not already
-        const tweets = Array.isArray(result.object)
-          ? result.object
-          : [result.object as TweetWithImage];
-
-        // Final tweets should use the same IDs as during streaming
-        const tweetsWithIds = tweets.map((tweet, index) => {
-          const tweetObj = tweet as TweetWithImage;
-          // Use existing ID if available
-          if (tweetObj.id) {
-            return tweetObj;
-          }
-          return {
-            ...tweetObj,
-            id: tweetObj.id || getOrCreateTweetId(tweetObj, index)
-          };
-        });
-
-        // Set all tweets to generating image state
-        const tweetsWithGeneratingState = tweetsWithIds.map(tweet => {
-          if (tweet.id && tweet.text) {
-            return { ...tweet, isGeneratingImage: true };
-          }
-          return tweet;
-        });
-
-        // Update thread with initial generating states
-        setThread(tweetsWithGeneratingState);
-
-        // Track which tweets need image generation
-        const newPendingIds = new Set<string>();
-        tweetsWithIds.forEach(tweet => {
-          if (tweet.id && tweet.text) {
-            newPendingIds.add(tweet.id);
-          }
-        });
-
-        // Update pending generations state
-        setPendingImageGenerations(newPendingIds);
-
-        // Log the start of image generation
-        console.log(`Starting image generation for ${newPendingIds.size} tweets`);
-      }
-    }
-  });
-
-  // Effect to handle image generation when pending state changes
-  useEffect(() => {
-    const generateImages = async () => {
-      if (pendingImageGenerations.size === 0 || !thread) return;
-
-      console.log(`Processing ${pendingImageGenerations.size} pending image generations`);
-
-      // Create an array of tweetIds that need generation
-      const pendingIds = Array.from(pendingImageGenerations);
-
-      // Generate images in parallel
-      await Promise.all(
-        pendingIds.map(async (tweetId) => {
-          // Find the tweet text
-          const tweetToProcess = thread.find(t => t.id === tweetId);
-          if (!tweetToProcess?.text) {
-            console.error(`Cannot generate image for tweet ${tweetId}: missing text`);
-            // Remove from pending list
-            setPendingImageGenerations(prev => {
-              const updated = new Set(prev);
-              updated.delete(tweetId);
-              return updated;
-            });
-            return;
-          }
-
-          try {
-            await generateImageForTweet(tweetId, tweetToProcess.text);
-          } catch (error) {
-            console.error(`Failed image generation for tweet ${tweetId}:`, error);
-          } finally {
-            // Remove from pending list
-            setPendingImageGenerations(prev => {
-              const updated = new Set(prev);
-              updated.delete(tweetId);
-              return updated;
-            });
-          }
-        })
-      );
-    };
-
-    generateImages();
-  }, [pendingImageGenerations, thread]);
-
-  // Generate a stable ID for each tweet based on content and position
-  const getOrCreateTweetId = (tweet: TweetWithImage, index: number) => {
-    // Create a content hash for the tweet (using text as the key)
-    const contentKey = `${tweet.text || ''}:${index}`;
-
-    // Check if we already have an ID for this content
-    if (tweetIdMap.has(contentKey)) {
-      return tweetIdMap.get(contentKey)!;
-    }
-
-    // Create a new ID if none exists
-    const newId = `tweet_${index}_${Date.now().toString().slice(-4)}`;
-
-    // Store for future reference
-    setTweetIdMap(prevMap => {
-      const newMap = new Map(prevMap);
-      newMap.set(contentKey, newId);
-      return newMap;
-    });
-
-    return newId;
-  };
-
-  // Update thread during streaming
-  useEffect(() => {
-    if (object && !isLoading) return; // Skip if we're done loading
-
-    if (object) {
-      const tweets = Array.isArray(object)
-        ? object
-        : [object as TweetWithImage];
-
-      // Add stable IDs to tweets during streaming
-      const tweetsWithIds = tweets.map((tweet, index) => {
-        const tweetObj = tweet as TweetWithImage;
-        // Use existing ID if available, otherwise generate a stable one
-        return {
-          ...tweetObj,
-          id: tweetObj.id || getOrCreateTweetId(tweetObj, index),
-          // During streaming, don't set isGeneratingImage yet
-          isGeneratingImage: false
-        };
-      });
-
-      setThread(tweetsWithIds as TweetWithImage[]);
-    }
-  }, [object]);
-
-  // Reset ID map when starting a new generation
-  useEffect(() => {
-    if (isLoading) {
-      setTweetIdMap(new Map());
-      setPendingImageGenerations(new Set());
-      // Clear the thread when starting a new generation
-      setThread(null);
-    }
-  }, [isLoading]);
-
-  const generateThread = (prompt: string) => {
-    submit({ prompt });
-  };
-
-  const updateTweetImage = (tweetId: string, imageUrl: string) => {
-    if (!thread) return;
+  // Update tweet image - memoized to avoid recreation
+  const updateTweetImage = useCallback((tweetId: string, imageUrl: string) => {
+    if (!tweetId) return;
 
     console.log(`Updating tweet ${tweetId} with image URL`);
 
@@ -225,10 +66,11 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         return tweet;
       });
     });
-  };
+  }, []);
 
-  const setTweetImageGenerating = (tweetId: string, generating: boolean) => {
-    if (!thread) return;
+  // Set tweet image generating state - memoized to avoid recreation
+  const setTweetImageGenerating = useCallback((tweetId: string, generating: boolean) => {
+    if (!tweetId) return;
 
     console.log(`Setting tweet ${tweetId} isGeneratingImage to ${generating}`);
 
@@ -242,10 +84,19 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         return tweet;
       });
     });
-  };
+  }, []);
 
-  const generateImageForTweet = async (tweetId: string, tweetText: string) => {
-    console.log(`Starting image generation for tweet ${tweetId}`);
+  // Generate image for a single tweet
+  const generateImageForTweet = useCallback(async (tweetId: string, tweetText: string) => {
+    if (!tweetId || !tweetText) {
+      console.error("Missing tweetId or text for image generation");
+      return;
+    }
+
+    console.log(`Starting image generation for tweet ${tweetId} with text: ${tweetText.substring(0, 30)}...`);
+
+    // Ensure tweet is marked as generating
+    setTweetImageGenerating(tweetId, true);
 
     try {
       const response = await fetch("/api/v1/generate-image", {
@@ -256,23 +107,117 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         body: JSON.stringify({ prompt: tweetText }),
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}: ${response.statusText}`);
+      }
 
-      if (data.image) {
+      const data = await response.json();
+      console.log(`Image API response for tweet ${tweetId}:`, data ? "Data received" : "No data");
+
+      if (data && data.image) {
         console.log(`Successfully generated image for tweet ${tweetId}`);
         // Convert base64 to data URL for images
         const imageUrl = `data:image/png;base64,${data.image}`;
         updateTweetImage(tweetId, imageUrl);
       } else {
-        console.log(`No image data returned for tweet ${tweetId}`);
-        // If no image was returned, clear the generating state
+        console.error(`No image data returned for tweet ${tweetId}`, data);
         setTweetImageGenerating(tweetId, false);
       }
     } catch (error) {
       console.error(`Error generating image for tweet ${tweetId}:`, error);
-      // Clear the generating state on error
       setTweetImageGenerating(tweetId, false);
     }
+  }, [setTweetImageGenerating, updateTweetImage]);
+
+  // Function to start generating all images
+  const generateAllImages = useCallback(async (tweetsWithIds: TweetWithImage[]) => {
+    console.log(`Starting to generate images for ${tweetsWithIds.length} tweets`);
+
+    // Filter for tweets with IDs and text
+    const tweetsToGenerate = tweetsWithIds.filter(tweet => tweet.id && tweet.text);
+    console.log(`Found ${tweetsToGenerate.length} tweets with text to generate images for`);
+
+    if (tweetsToGenerate.length === 0) {
+      console.warn("No tweets with text to generate images for");
+      return;
+    }
+
+    // Process one tweet at a time to avoid overloading the API
+    for (const tweet of tweetsToGenerate) {
+      if (tweet.id && tweet.text) {
+        try {
+          await generateImageForTweet(tweet.id, tweet.text);
+          // Add a small delay between requests to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Failed image generation for tweet ${tweet.id}:`, error);
+        }
+      }
+    }
+
+    console.log("Finished generating all images");
+  }, [generateImageForTweet]);
+
+  // Expose a function to regenerate an image
+  const regenerateImage = useCallback(async (tweetId: string, tweetText: string) => {
+    if (!tweetId || !tweetText) return;
+    await generateImageForTweet(tweetId, tweetText);
+  }, [generateImageForTweet]);
+
+  const { object, submit, isLoading, stop } = useObject({
+    api: '/api/v1/generate-thread',
+    schema: ThreadSchema,
+    onFinish: async (result) => {
+      if (result.object) {
+        // Convert to array if it's not already
+        const tweets = Array.isArray(result.object)
+          ? result.object
+          : [result.object as TweetWithImage];
+
+        // Generate IDs for all tweets only on finish
+        const tweetsWithIds = tweets.map((tweet, index) => {
+          const tweetObj = tweet as TweetWithImage;
+          return {
+            ...tweetObj,
+            id: `tweet_${index}_${Date.now().toString().slice(-4)}`,
+            isGeneratingImage: Boolean(tweetObj.text)
+          };
+        });
+
+        // Update thread with finalized tweets
+        setThread(tweetsWithIds);
+
+        console.log(`Thread generation finished with ${tweetsWithIds.length} tweets`);
+
+        // Immediately start generating images for all tweets
+        await generateAllImages(tweetsWithIds);
+      }
+    }
+  });
+
+  // Update thread during streaming without IDs
+  useEffect(() => {
+    if (object && !isLoading) return; // Skip if we're done loading
+
+    if (object) {
+      const tweets = Array.isArray(object)
+        ? object
+        : [object as TweetWithImage];
+
+      // During streaming, display tweets without IDs
+      setThread(tweets as TweetWithImage[]);
+    }
+  }, [object, isLoading]);
+
+  // Reset state when starting a new generation
+  useEffect(() => {
+    if (isLoading) {
+      setThread(null);
+    }
+  }, [isLoading]);
+
+  const generateThread = (prompt: string) => {
+    submit({ prompt });
   };
 
   return (
@@ -283,7 +228,8 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         generateThread,
         stopGeneration: stop,
         updateTweetImage,
-        setTweetImageGenerating
+        setTweetImageGenerating,
+        regenerateImage
       }}
     >
       {children}
