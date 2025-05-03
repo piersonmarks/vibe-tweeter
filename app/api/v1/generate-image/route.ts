@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { experimental_generateImage as generateImage } from "ai";
+import { experimental_generateImage as generateImage, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 /**
@@ -43,12 +43,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error }, { status: 400 });
     }
 
-
     console.log(`Generating image [requestId=${requestId}, prompt=${prompt}]`);
+
+    const { text } = await generateText({
+      model: openai.responses('gpt-4o-mini'),
+      prompt: `
+        Generate a detailed prompt for an image generation model to generate an image for the following text: ${prompt}.
+
+        The prompt should be detailed and include all the information needed to generate the image with an LLM.
+        The prompt should be short and max 100 words.
+      `,
+    });
+
+    console.log(`Generated image prompt: ${text}`);
     const startstamp = performance.now();
     const generatePromise = generateImage({
       model: openai.image(modelId),
-      prompt,
+      prompt: text,
       size: DEFAULT_IMAGE_SIZE,
     }).then(({ image, warnings }) => {
       if (warnings?.length > 0) {

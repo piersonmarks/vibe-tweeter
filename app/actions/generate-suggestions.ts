@@ -10,6 +10,7 @@ export async function generateSuggestions() {
     const { text: recentNews } = await generateText({
       model: openai.responses('gpt-4o-mini'),
       prompt: 'What are the most interesting or significant events that happened in the last 24 hours globally? Focus on diverse topics like technology, sports, politics, entertainment, and business. Provide a concise summary of 3-5 major events.',
+      temperature: 0.9,
       tools: {
         web_search_preview: openai.tools.webSearchPreview({
           searchContextSize: 'high',
@@ -27,8 +28,9 @@ export async function generateSuggestions() {
       model: openai("gpt-4o-mini"),
       output: 'array',
       schema: SuggestionSchema,
+      temperature: 0.9,
       prompt: `
-      Generate 5 engaging content ideas for a twitter thread based on recent events and news.
+      Generate 3 engaging content ideas for a twitter thread based on recent events and news.
 
       Here's information about recent events to inspire your suggestions:
       ${recentNews}

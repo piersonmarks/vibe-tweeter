@@ -25,7 +25,7 @@ export function PromptInput({
   const [input, setInput] = useState("");
 
   const handleSuggestionSelect = (prompt: string) => {
-    const shouldReset = onSubmit(prompt);
+    const shouldReset = onSubmit(prompt.trim());
     if (shouldReset) {
       setInput("");
     }
@@ -33,22 +33,18 @@ export function PromptInput({
 
   const handleSubmit = () => {
     if (!isLoading && input.trim()) {
-      const shouldReset = onSubmit(input);
+      const shouldReset = onSubmit(input.trim());
       if (shouldReset) {
         setInput("");
       }
     }
   };
 
-  const updateSuggestions = () => {
-    mutate('/api/v1/generate-suggestions')
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!isLoading && input.trim()) {
-        const shouldReset = onSubmit(input);
+        const shouldReset = onSubmit(input.trim());
         if (shouldReset) {
           setInput("");
         }
@@ -79,7 +75,7 @@ export function PromptInput({
                       "flex shadow-none items-center justify-center rounded-full py-1 bg-stone-300 text-sm hover:bg-stone-400 group transition-colors duration-200 text-center",
                     )}
                   >
-                    <span className="max-w-[120px] overflow-hidden flex items-center">
+                    <span className="max-w-[150px] overflow-hidden flex items-center">
                       <span className="text-stone-800 text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis inline-block truncate">
                         {suggestion.text.toLowerCase()}
                       </span>

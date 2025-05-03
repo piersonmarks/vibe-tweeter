@@ -3,6 +3,9 @@ import { ImagePlayground } from "@/components/ImagePlayground";
 import { ThreadProvider } from "@/provider/thread-provider";
 import { generateSuggestions } from "./actions/generate-suggestions";
 
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
 export default async function Page() {
 
   const suggestions = await generateSuggestions()

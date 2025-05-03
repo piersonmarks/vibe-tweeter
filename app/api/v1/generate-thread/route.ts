@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     return Response.json({ error: "Prompt is required" }, { status: 400 });
   }
 
+  console.log(`Generating thread for prompt: ${prompt}`);
+
   try {
     // First, search the web for relevant information about the prompt
     const { text: searchResults } = await generateText({

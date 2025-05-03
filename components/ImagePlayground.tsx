@@ -39,22 +39,6 @@ export function ImagePlayground({ suggestions }: { suggestions: Suggestion[] }) 
         )}
         <TweetThread thread={thread} isLoading={isGenerating} />
       </div>
-      {/* {
-        image || error || timing.startTime ? (
-          <div className="mt-8">
-            <ImageDisplay
-              image={image?.image}
-              failed={!!error}
-              timing={timing}
-            />
-            {activePrompt && (
-              <div className="text-center mt-4 text-muted-foreground">
-                {activePrompt}
-              </div>
-            )}
-          </div>
-        ) : null
-      } */}
     </div>
   );
 }
