@@ -12,7 +12,7 @@ import { mutate } from "swr";
 type Suggestion = z.infer<typeof SuggestionSchema>;
 
 interface PromptInputProps {
-  onSubmit: (prompt: string) => void;
+  onSubmit: (prompt: string) => boolean | void;
   isLoading?: boolean;
 }
 
@@ -26,13 +26,18 @@ export function PromptInput({
   console.log(data);
 
   const handleSuggestionSelect = (prompt: string) => {
-    setInput(prompt);
-    onSubmit(prompt);
+    const shouldReset = onSubmit(prompt);
+    if (shouldReset) {
+      setInput("");
+    }
   };
 
   const handleSubmit = () => {
     if (!isLoading && input.trim()) {
-      onSubmit(input);
+      const shouldReset = onSubmit(input);
+      if (shouldReset) {
+        setInput("");
+      }
     }
   };
 
@@ -44,7 +49,10 @@ export function PromptInput({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!isLoading && input.trim()) {
-        onSubmit(input);
+        const shouldReset = onSubmit(input);
+        if (shouldReset) {
+          setInput("");
+        }
       }
     }
   };

@@ -6,6 +6,17 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
 }
 
 @layer base {
@@ -36,6 +47,7 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
+
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
@@ -68,6 +80,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -78,6 +91,7 @@
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -93,10 +107,12 @@
     box-shadow: 0 0 0 0 hsl(var(--ring) / 0.1);
     background-color: hsl(var(--muted) / 0.2);
   }
+
   50% {
     box-shadow: 0 0 0 4px hsl(var(--ring) / 0.2);
     background-color: hsl(var(--muted) / 0.3);
   }
+
   100% {
     box-shadow: 0 0 0 0 hsl(var(--ring) / 0);
     background-color: transparent;
@@ -107,4 +123,3 @@
   animation: highlight 2s cubic-bezier(0.4, 0, 0.2, 1);
   animation-fill-mode: forwards;
 }
-
