@@ -1,7 +1,5 @@
 import { TweetSchema } from "@/app/api/schema";
-import Image from "next/image";
 import { z } from "zod";
-import { User } from "lucide-react";
 import { TweetImage } from "./TweetImage";
 
 type Tweet = z.infer<typeof TweetSchema>;
@@ -13,21 +11,22 @@ type TweetWithImage = Partial<Tweet> & {
   username?: string;
   verified?: boolean;
   date?: string;
+  id?: string;
 }
 
 type TweetThreadProps = {
-  object?: TweetWithImage[] | Partial<{ text: string; imageDescription: string; }>;
+  thread?: TweetWithImage[] | null;
   isLoading: boolean;
 }
 
-export function TweetThread({ object = [], isLoading }: TweetThreadProps) {
+export function TweetThread({ thread = null, isLoading }: TweetThreadProps) {
   // Convert to array if it's not already
-  const tweets = Array.isArray(object) ? object : object ? [object as TweetWithImage] : [];
+  const tweets = thread ? Array.isArray(thread) ? thread : [thread as TweetWithImage] : [];
 
   return (
     <div>
       {tweets.map((tweet, index) => (
-        <div key={index} className="p-4 ">
+        <div key={tweet.id || index} className="p-4 ">
           <div className="flex items-start space-x-3">
             <div className="bg-stone-200 rounded-full min-w-6 min-h-6 w-auto h-auto aspect-square flex items-center justify-center text-white font-bold text-sm px-2">
               {index + 1}

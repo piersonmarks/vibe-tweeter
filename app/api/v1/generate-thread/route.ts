@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   try {
     const result = await streamObject({
       model: openai("gpt-4o-mini"),
-      prompt,
+      prompt: `Generate a thread of tweets about ${prompt}. Max 3 items.`,
       schema: TweetSchema,
       output: "array",
     });

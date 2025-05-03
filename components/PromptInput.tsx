@@ -23,8 +23,6 @@ export function PromptInput({
   const [input, setInput] = useState("");
   const { data, isLoading: suggestionsLoading } = useSuggestions();
 
-  console.log(data);
-
   const handleSuggestionSelect = (prompt: string) => {
     const shouldReset = onSubmit(prompt);
     if (shouldReset) {

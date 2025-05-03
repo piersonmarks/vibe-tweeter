@@ -1,34 +1,19 @@
 "use client";
 
 import { PromptInput } from "@/components/PromptInput";
-import { useImageGeneration } from "@/hooks/use-image-generation";
-import { ImageDisplay } from "./ImageDisplay";
-import { TweetSchema } from "@/app/api/schema";
-import { experimental_useObject as useObject } from '@ai-sdk/react';
-import { TweetThread } from "./TweetThread";
+import { useThread } from "@/provider/thread-provider";
 import { useState } from "react";
+import { TweetThread } from "./TweetThread";
 
 export function ImagePlayground() {
   const [currentPrompt, setCurrentPrompt] = useState<string>("");
-  const {
-    image,
-    error,
-    timing,
-    isLoading,
-    startGeneration,
-    activePrompt,
-    resetState,
-  } = useImageGeneration();
 
-  const { object, submit, isLoading: isGeneratingThread, stop } = useObject({
-    api: '/api/v1/generate-thread',
-    schema: TweetSchema,
-  });
+  const { thread, isGenerating, generateThread } = useThread();
 
   const handlePromptSubmit = (newPrompt: string) => {
     setCurrentPrompt(newPrompt);
     // startGeneration(newPrompt);
-    submit({ prompt: newPrompt });
+    generateThread(newPrompt);
     // Reset the input in the PromptInput component
     return true; // This will signal PromptInput to reset
   }
@@ -37,7 +22,7 @@ export function ImagePlayground() {
     <div>
       <PromptInput
         onSubmit={handlePromptSubmit}
-        isLoading={isLoading || isGeneratingThread}
+        isLoading={isGenerating}
       />
       <div className="w-full max-w-xl mx-auto space-y-2">
         {currentPrompt && (
@@ -46,7 +31,7 @@ export function ImagePlayground() {
             <p className="text-sm text-stone-500">{currentPrompt}</p>
           </div>
         )}
-        <TweetThread object={object} isLoading={isGeneratingThread} />
+        <TweetThread thread={thread} isLoading={isGenerating} />
       </div>
       {/* {
         image || error || timing.startTime ? (
