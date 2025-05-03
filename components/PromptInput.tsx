@@ -6,22 +6,22 @@ import { cn } from "@/lib/utils";
 
 import { SuggestionSchema } from "@/app/api/schema";
 import { z } from "zod";
-import { useSuggestions } from "@/hooks/use-suggestions";
 import { mutate } from "swr";
 
 type Suggestion = z.infer<typeof SuggestionSchema>;
 
 interface PromptInputProps {
+  suggestions: Suggestion[];
   onSubmit: (prompt: string) => boolean | void;
   isLoading?: boolean;
 }
 
 export function PromptInput({
+  suggestions,
   isLoading,
   onSubmit,
 }: PromptInputProps) {
   const [input, setInput] = useState("");
-  const { data, isLoading: suggestionsLoading } = useSuggestions();
 
   const handleSuggestionSelect = (prompt: string) => {
     const shouldReset = onSubmit(prompt);
@@ -70,17 +70,7 @@ export function PromptInput({
           <div className="flex items-center justify-between pt-1">
             <div className="flex-1 overflow-x-auto pr-2 no-scrollbar">
               <div className="flex items-center space-x-2">
-                {suggestionsLoading ? (
-                  <Spinner className="w-3 h-3 text-zinc-500 flex-shrink-0" />
-                ) : (
-                  <button
-                    onClick={updateSuggestions}
-                    className="flex items-center justify-between px-2 rounded-lg py-1 bg-background text-sm hover:opacity-70 group transition-opacity duration-200 flex-shrink-0"
-                  >
-                    <RefreshCw className="w-4 h-4 text-zinc-500 group-hover:opacity-70" />
-                  </button>
-                )}
-                {data?.suggestions.map((suggestion: Suggestion, index: number) => (
+                {suggestions.map((suggestion: Suggestion, index: number) => (
                   <button
                     key={index}
                     onClick={() => handleSuggestionSelect(suggestion.prompt)}

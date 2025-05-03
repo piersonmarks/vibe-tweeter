@@ -5,7 +5,12 @@ import { useThread } from "@/provider/thread-provider";
 import { useState } from "react";
 import { TweetThread } from "./TweetThread";
 
-export function ImagePlayground() {
+type Suggestion = {
+  text: string;
+  prompt: string;
+}
+
+export function ImagePlayground({ suggestions }: { suggestions: Suggestion[] }) {
   const [currentPrompt, setCurrentPrompt] = useState<string>("");
 
   const { thread, isGenerating, generateThread } = useThread();
@@ -21,6 +26,7 @@ export function ImagePlayground() {
   return (
     <div>
       <PromptInput
+        suggestions={suggestions}
         onSubmit={handlePromptSubmit}
         isLoading={isGenerating}
       />

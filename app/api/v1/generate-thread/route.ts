@@ -12,7 +12,20 @@ export async function POST(req: Request) {
   try {
     const result = await streamObject({
       model: openai("gpt-4o-mini"),
-      prompt: `Generate a thread of tweets about ${prompt}. Max 3 items.`,
+      prompt: `
+        You are a highly skilled marketing expert who crafts engaging twitter threads.
+
+        You will be given a prompt and you will need to generate a thread of tweets about the prompt.
+
+        The thread should be short and max 7 items.
+        The tweets should be short and max 280 characters.
+        The tweets should be engaging and interesting.
+        The tweets should be related to the prompt.
+        Don't include markdown formatting.
+
+        # Prompt
+        ${prompt}.
+      `,
       schema: TweetSchema,
       output: "array",
     });
