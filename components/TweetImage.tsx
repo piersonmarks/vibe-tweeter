@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useThread } from "@/provider/thread-provider";
 import { Button } from "./ui/button";
-import { ImagePlus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
 type Tweet = z.infer<typeof TweetSchema>;
@@ -17,6 +17,7 @@ type TweetWithImage = Partial<Tweet> & {
 
 export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
   const [localIsGenerating, setLocalIsGenerating] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const { updateTweetImage, setTweetImageGenerating } = useThread();
 
   // Use either local state or tweet's isGeneratingImage property
@@ -65,26 +66,44 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
               <p className="text-stone-600 font-medium">Generating image...</p>
             </div>
           ) : (
-            <Button
-              onClick={handleGenerateImage}
-              className="shadow-none px-4 py-2 bg-stone-500 text-white rounded-md hover:bg-stone-600 transition-colors"
-              disabled={!tweet.text}
-            >
-              <div className="flex items-center gap-2">
-                <ImagePlus className="w-4 h-4" />
-                Generate Image
-              </div>
-            </Button>
+            // Empty state - no button, just a placeholder
+            <div className="text-stone-400 text-sm">Image will be generated automatically</div>
           )}
         </div>
       ) : (
-        <Image
-          src={tweet.image}
-          alt="Tweet image"
-          width={500}
-          height={300}
-          className="w-full h-full object-cover rounded-xl"
-        />
+        <div
+          className="relative w-full h-full"
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+        >
+          <Image
+            src={tweet.image}
+            alt="Tweet image"
+            width={500}
+            height={300}
+            className="w-full h-full object-cover rounded-xl"
+          />
+
+          {/* Regenerate button - only shows on hover */}
+          {isHovering && !isGenerating && (
+            <button
+              onClick={handleGenerateImage}
+              className="absolute bottom-3 right-3 bg-stone-800/50 hover:bg-stone-800/70 rounded-full p-2 transition-all"
+              aria-label="Regenerate image"
+            >
+              <RefreshCw className="w-4 h-4 text-white" />
+            </button>
+          )}
+
+          {/* Loading indicator if regenerating */}
+          {isGenerating && (
+            <div className="absolute inset-0 flex items-center justify-center bg-stone-900/30 rounded-xl">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-white" />
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
