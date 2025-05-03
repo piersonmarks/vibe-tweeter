@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -15,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AI SDK Image Generator",
-  description: "An open-source AI image generator using the AI SDK by Vercel",
+  title: "Vibe Marketing",
+  description: "Vibe Marketing tool",
 };
 
 export default function RootLayout({
@@ -26,9 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
-        <Analytics />
       </body>
     </html>
   );

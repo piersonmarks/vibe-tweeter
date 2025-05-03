@@ -1,8 +1,14 @@
+import { Header } from "@/components/Header";
 import { ImagePlayground } from "@/components/ImagePlayground";
-import { getRandomSuggestions } from "@/lib/suggestions";
 
-export const dynamic = "force-dynamic";
 
 export default function Page() {
-  return <ImagePlayground suggestions={getRandomSuggestions()} />;
+  return (
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <Header />
+        <ImagePlayground />
+      </div>
+    </div>
+  );
 }

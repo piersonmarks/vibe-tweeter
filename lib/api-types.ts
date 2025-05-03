@@ -1,8 +1,5 @@
-import { ProviderKey } from "./provider-config";
-
 export interface GenerateImageRequest {
   prompt: string;
-  provider: ProviderKey;
   modelId: string;
 }
 
