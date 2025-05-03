@@ -33,9 +33,12 @@ export const Header = () => {
     <header className="mb-4">
       <div className="mx-auto flex justify-center items-center">
         <div>
-          <h1 className="text-xl flex sm:text-2xl sm:font-bold antialiased font-semibold">
-            Vibe Marketing
+          <h1 className="text-3xl flex sm:text-4xl sm:font-bold antialiased font-semibold">
+            Thread Generator
           </h1>
+          <p className="text-sm text-muted-foreground">
+            Generate a thread of tweets about a prompt.
+          </p>
         </div>
       </div>
     </header>

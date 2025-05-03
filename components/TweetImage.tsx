@@ -6,6 +6,7 @@ import { useThread } from "@/provider/thread-provider";
 import { Button } from "./ui/button";
 import { RefreshCw } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type Tweet = z.infer<typeof TweetSchema>;
 
@@ -32,6 +33,7 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
 
   const handleGenerateImage = async () => {
     if (!tweet.text || !tweet.id) return;
+    toast.loading("Regenerating image...");
 
     setLocalIsGenerating(true);
     try {
@@ -60,15 +62,10 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
     <div className="rounded-xl border border-stone-200 w-[500px] h-[300px] overflow-hidden">
       {!tweet.image ? (
         <div className="w-full h-full flex bg-stone-200 items-center justify-center flex-col gap-3">
-          {isGenerating ? (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-stone-500" />
-              <p className="text-stone-600 font-medium">Generating image...</p>
-            </div>
-          ) : (
-            // Empty state - no button, just a placeholder
-            <div className="text-stone-400 text-sm">Image will be generated automatically</div>
-          )}
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="w-8 h-8 animate-spin text-stone-500" />
+            <p className="text-stone-600 font-medium">Generating image...</p>
+          </div>
         </div>
       ) : (
         <div
