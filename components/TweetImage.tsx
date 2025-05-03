@@ -1,7 +1,7 @@
 import { TweetSchema } from "@/app/api/schema";
 import { z } from "zod";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useThread } from "@/provider/thread-provider";
 import { Button } from "./ui/button";
 import { ImagePlus } from "lucide-react";
@@ -12,16 +12,27 @@ type Tweet = z.infer<typeof TweetSchema>;
 type TweetWithImage = Partial<Tweet> & {
   image?: string;
   id?: string;
+  isGeneratingImage?: boolean;
 }
 
 export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const { updateTweetImage } = useThread();
+  const [localIsGenerating, setLocalIsGenerating] = useState(false);
+  const { updateTweetImage, setTweetImageGenerating } = useThread();
+
+  // Use either local state or tweet's isGeneratingImage property
+  const isGenerating = localIsGenerating || tweet.isGeneratingImage;
+
+  // For debugging - log when generating state changes
+  useEffect(() => {
+    if (tweet.id && isGenerating) {
+      console.log(`TweetImage: Tweet ${tweet.id} is generating image`);
+    }
+  }, [isGenerating, tweet.id]);
 
   const handleGenerateImage = async () => {
     if (!tweet.text || !tweet.id) return;
 
-    setIsGenerating(true);
+    setLocalIsGenerating(true);
     try {
       const response = await fetch("/api/v1/generate-image", {
         method: "POST",
@@ -40,7 +51,7 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
     } catch (error) {
       console.error("Failed to generate image:", error);
     } finally {
-      setIsGenerating(false);
+      setLocalIsGenerating(false);
     }
   };
 
@@ -48,23 +59,23 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
     <div className="rounded-xl border border-stone-200 w-[500px] h-[300px] overflow-hidden">
       {!tweet.image ? (
         <div className="w-full h-full flex bg-stone-200 items-center justify-center flex-col gap-3">
-          <Button
-            onClick={handleGenerateImage}
-            className="shadow-none px-4 py-2 bg-stone-500 text-white rounded-md hover:bg-stone-600 transition-colors"
-            disabled={!tweet.text || isGenerating}
-          >
-            {isGenerating ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating...
-              </div>
-            ) : (
+          {isGenerating ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-stone-500" />
+              <p className="text-stone-600 font-medium">Generating image...</p>
+            </div>
+          ) : (
+            <Button
+              onClick={handleGenerateImage}
+              className="shadow-none px-4 py-2 bg-stone-500 text-white rounded-md hover:bg-stone-600 transition-colors"
+              disabled={!tweet.text}
+            >
               <div className="flex items-center gap-2">
                 <ImagePlus className="w-4 h-4" />
                 Generate Image
               </div>
-            )}
-          </Button>
+            </Button>
+          )}
         </div>
       ) : (
         <Image

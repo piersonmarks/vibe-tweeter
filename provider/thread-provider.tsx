@@ -15,6 +15,7 @@ type TweetWithImage = Partial<Tweet> & {
   username?: string;
   verified?: boolean;
   date?: string;
+  isGeneratingImage?: boolean;
 }
 
 type Thread = TweetWithImage[] | null;
@@ -28,6 +29,7 @@ interface ThreadContextType {
   generateThread: (prompt: string) => void;
   stopGeneration: () => void;
   updateTweetImage: (tweetId: string, imageUrl: string) => void;
+  setTweetImageGenerating: (tweetId: string, generating: boolean) => void;
 }
 
 export const ThreadContext = createContext<ThreadContextType>({
@@ -36,6 +38,7 @@ export const ThreadContext = createContext<ThreadContextType>({
   generateThread: () => { },
   stopGeneration: () => { },
   updateTweetImage: () => { },
+  setTweetImageGenerating: () => { },
 });
 
 export function useThread() {
@@ -46,6 +49,8 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
   const [thread, setThread] = useState<Thread>(null);
   // Store IDs for consistent mapping
   const [tweetIdMap, setTweetIdMap] = useState<Map<string, string>>(new Map());
+  // Track pending image generations
+  const [pendingImageGenerations, setPendingImageGenerations] = useState<Set<string>>(new Set());
 
   const { object, submit, isLoading, stop } = useObject({
     api: '/api/v1/generate-thread',
@@ -70,10 +75,78 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
           };
         });
 
-        setThread(tweetsWithIds);
+        // Set all tweets to generating image state
+        const tweetsWithGeneratingState = tweetsWithIds.map(tweet => {
+          if (tweet.id && tweet.text) {
+            return { ...tweet, isGeneratingImage: true };
+          }
+          return tweet;
+        });
+
+        // Update thread with initial generating states
+        setThread(tweetsWithGeneratingState);
+
+        // Track which tweets need image generation
+        const newPendingIds = new Set<string>();
+        tweetsWithIds.forEach(tweet => {
+          if (tweet.id && tweet.text) {
+            newPendingIds.add(tweet.id);
+          }
+        });
+
+        // Update pending generations state
+        setPendingImageGenerations(newPendingIds);
+
+        // Log the start of image generation
+        console.log(`Starting image generation for ${newPendingIds.size} tweets`);
       }
     }
   });
+
+  // Effect to handle image generation when pending state changes
+  useEffect(() => {
+    const generateImages = async () => {
+      if (pendingImageGenerations.size === 0 || !thread) return;
+
+      console.log(`Processing ${pendingImageGenerations.size} pending image generations`);
+
+      // Create an array of tweetIds that need generation
+      const pendingIds = Array.from(pendingImageGenerations);
+
+      // Generate images in parallel
+      await Promise.all(
+        pendingIds.map(async (tweetId) => {
+          // Find the tweet text
+          const tweetToProcess = thread.find(t => t.id === tweetId);
+          if (!tweetToProcess?.text) {
+            console.error(`Cannot generate image for tweet ${tweetId}: missing text`);
+            // Remove from pending list
+            setPendingImageGenerations(prev => {
+              const updated = new Set(prev);
+              updated.delete(tweetId);
+              return updated;
+            });
+            return;
+          }
+
+          try {
+            await generateImageForTweet(tweetId, tweetToProcess.text);
+          } catch (error) {
+            console.error(`Failed image generation for tweet ${tweetId}:`, error);
+          } finally {
+            // Remove from pending list
+            setPendingImageGenerations(prev => {
+              const updated = new Set(prev);
+              updated.delete(tweetId);
+              return updated;
+            });
+          }
+        })
+      );
+    };
+
+    generateImages();
+  }, [pendingImageGenerations, thread]);
 
   // Generate a stable ID for each tweet based on content and position
   const getOrCreateTweetId = (tweet: TweetWithImage, index: number) => {
@@ -125,6 +198,7 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
   useEffect(() => {
     if (isLoading) {
       setTweetIdMap(new Map());
+      setPendingImageGenerations(new Set());
     }
   }, [isLoading]);
 
@@ -135,16 +209,66 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
   const updateTweetImage = (tweetId: string, imageUrl: string) => {
     if (!thread) return;
 
+    console.log(`Updating tweet ${tweetId} with image URL`);
+
     setThread(currentThread => {
       if (!currentThread) return currentThread;
 
       return currentThread.map(tweet => {
         if (tweet.id === tweetId) {
-          return { ...tweet, image: imageUrl };
+          return { ...tweet, image: imageUrl, isGeneratingImage: false };
         }
         return tweet;
       });
     });
+  };
+
+  const setTweetImageGenerating = (tweetId: string, generating: boolean) => {
+    if (!thread) return;
+
+    console.log(`Setting tweet ${tweetId} isGeneratingImage to ${generating}`);
+
+    setThread(currentThread => {
+      if (!currentThread) return currentThread;
+
+      return currentThread.map(tweet => {
+        if (tweet.id === tweetId) {
+          return { ...tweet, isGeneratingImage: generating };
+        }
+        return tweet;
+      });
+    });
+  };
+
+  const generateImageForTweet = async (tweetId: string, tweetText: string) => {
+    console.log(`Starting image generation for tweet ${tweetId}`);
+
+    try {
+      const response = await fetch("/api/v1/generate-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: tweetText }),
+      });
+
+      const data = await response.json();
+
+      if (data.image) {
+        console.log(`Successfully generated image for tweet ${tweetId}`);
+        // Convert base64 to data URL for images
+        const imageUrl = `data:image/png;base64,${data.image}`;
+        updateTweetImage(tweetId, imageUrl);
+      } else {
+        console.log(`No image data returned for tweet ${tweetId}`);
+        // If no image was returned, clear the generating state
+        setTweetImageGenerating(tweetId, false);
+      }
+    } catch (error) {
+      console.error(`Error generating image for tweet ${tweetId}:`, error);
+      // Clear the generating state on error
+      setTweetImageGenerating(tweetId, false);
+    }
   };
 
   return (
@@ -154,7 +278,8 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         isGenerating: isLoading,
         generateThread,
         stopGeneration: stop,
-        updateTweetImage
+        updateTweetImage,
+        setTweetImageGenerating
       }}
     >
       {children}
