@@ -3,6 +3,9 @@ import { z } from "zod";
 import Image from "next/image";
 import { useState } from "react";
 import { useThread } from "@/provider/thread-provider";
+import { Button } from "./ui/button";
+import { ImagePlus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type Tweet = z.infer<typeof TweetSchema>;
 
@@ -42,23 +45,26 @@ export function TweetImage({ tweet }: { tweet: TweetWithImage }) {
   };
 
   return (
-    <div className="rounded-xl border border-stone-200 w-[500px] h-[300px]">
+    <div className="rounded-xl border border-stone-200 w-[500px] h-[300px] overflow-hidden">
       {!tweet.image ? (
-        <div className="w-full h-full flex items-center justify-center flex-col gap-3">
-          {isGenerating ? (
-            <p className="text-stone-500">Generating image...</p>
-          ) : (
-            <>
-              <p className="text-stone-500">No image</p>
-              <button
-                onClick={handleGenerateImage}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                disabled={!tweet.text || isGenerating}
-              >
+        <div className="w-full h-full flex bg-stone-200 items-center justify-center flex-col gap-3">
+          <Button
+            onClick={handleGenerateImage}
+            className="shadow-none px-4 py-2 bg-stone-500 text-white rounded-md hover:bg-stone-600 transition-colors"
+            disabled={!tweet.text || isGenerating}
+          >
+            {isGenerating ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating...
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <ImagePlus className="w-4 h-4" />
                 Generate Image
-              </button>
-            </>
-          )}
+              </div>
+            )}
+          </Button>
         </div>
       ) : (
         <Image
