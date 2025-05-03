@@ -142,18 +142,18 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
       return;
     }
 
-    // Process one tweet at a time to avoid overloading the API
-    for (const tweet of tweetsToGenerate) {
-      if (tweet.id && tweet.text) {
-        try {
-          await generateImageForTweet(tweet.id, tweet.text);
-          // Add a small delay between requests to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`Failed image generation for tweet ${tweet.id}:`, error);
+    // Generate all images in parallel
+    await Promise.all(
+      tweetsToGenerate.map(async (tweet) => {
+        if (tweet.id && tweet.text) {
+          try {
+            await generateImageForTweet(tweet.id, tweet.text);
+          } catch (error) {
+            console.error(`Failed image generation for tweet ${tweet.id}:`, error);
+          }
         }
-      }
-    }
+      })
+    );
 
     console.log("Finished generating all images");
   }, [generateImageForTweet]);
