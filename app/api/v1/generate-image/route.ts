@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
 
         The prompt should be detailed and include all the information needed to generate the image with an LLM.
         The prompt should be short and max 100 words.
+        The style should be illustrative watercolor style.
       `,
     });
 

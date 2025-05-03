@@ -29,6 +29,7 @@ interface ThreadContextType {
   generateThread: (prompt: string) => void;
   stopGeneration: () => void;
   updateTweetImage: (tweetId: string, imageUrl: string) => void;
+  updateTweetText: (tweetId: string, text: string) => void;
   setTweetImageGenerating: (tweetId: string, generating: boolean) => void;
   regenerateImage: (tweetId: string, tweetText: string) => Promise<void>;
 }
@@ -39,6 +40,7 @@ export const ThreadContext = createContext<ThreadContextType>({
   generateThread: () => { },
   stopGeneration: () => { },
   updateTweetImage: () => { },
+  updateTweetText: () => { },
   setTweetImageGenerating: () => { },
   regenerateImage: async () => { },
 });
@@ -49,6 +51,24 @@ export function useThread() {
 
 export function ThreadProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [thread, setThread] = useState<Thread>(null);
+
+  // Update tweet text - memoized to avoid recreation
+  const updateTweetText = useCallback((tweetId: string, text: string) => {
+    if (!tweetId) return;
+
+    console.log(`Updating tweet ${tweetId} with new text`);
+
+    setThread(currentThread => {
+      if (!currentThread) return currentThread;
+
+      return currentThread.map(tweet => {
+        if (tweet.id === tweetId) {
+          return { ...tweet, text };
+        }
+        return tweet;
+      });
+    });
+  }, []);
 
   // Update tweet image - memoized to avoid recreation
   const updateTweetImage = useCallback((tweetId: string, imageUrl: string) => {
@@ -228,6 +248,7 @@ export function ThreadProvider({ children }: { children: React.ReactNode }): Rea
         generateThread,
         stopGeneration: stop,
         updateTweetImage,
+        updateTweetText,
         setTweetImageGenerating,
         regenerateImage
       }}

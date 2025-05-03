@@ -4,6 +4,7 @@ import { TweetImage } from "./TweetImage";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useThread } from "@/provider/thread-provider";
 
 type Tweet = z.infer<typeof TweetSchema>;
 
@@ -28,6 +29,7 @@ export function TweetThread({ thread = null, isLoading }: TweetThreadProps) {
   const [editedTexts, setEditedTexts] = useState<{ [key: string]: string }>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const { updateTweetText } = useThread();
 
   const handleTextChange = (index: number, text: string) => {
     setEditedTexts(prev => ({
@@ -46,6 +48,15 @@ export function TweetThread({ thread = null, isLoading }: TweetThreadProps) {
   };
 
   const stopEditing = () => {
+    if (editingIndex !== null) {
+      const tweet = tweets[editingIndex];
+      const editedText = editedTexts[editingIndex];
+
+      // Only update if there's a change and the tweet has an ID
+      if (tweet?.id && editedText && editedText !== tweet.text) {
+        updateTweetText(tweet.id, editedText);
+      }
+    }
     setEditingIndex(null);
   };
 
@@ -89,7 +100,7 @@ export function TweetThread({ thread = null, isLoading }: TweetThreadProps) {
                   </div>
                 ) : (
                   <div className="min-h-[24px] group relative">
-                    <p className="text-sm">{editedTexts[index] ?? tweet.text}</p>
+                    <p className="text-sm">{tweet.text || editedTexts[index]}</p>
                     {hoverIndex === index && (
                       <Button
                         className="absolute top-0 right-0 text-xs bg-stone-100 hover:bg-stone-200 text-stone-800"
